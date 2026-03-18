@@ -1,0 +1,62 @@
+<!-- 首页：逮老二 - 游戏设置 -->
+<view class="container">
+
+  <!-- 标题 -->
+  <view class="title-box">
+    <text class="title">逮老二</text>
+    <text class="subtitle">炸金花·四轮博弈</text>
+  </view>
+
+  <!-- 选择玩家人数 -->
+  <view class="section">
+    <text class="section-title">选择玩家人数</text>
+    <view class="count-row">
+      <view
+        class="count-btn {{numPlayers===3 ? 'active' : ''}}"
+        bindtap="setCount"
+        data-count="{{3}}">
+        <text class="count-num">3</text>
+        <text class="count-label">人</text>
+      </view>
+      <view
+        class="count-btn {{numPlayers===4 ? 'active' : ''}}"
+        bindtap="setCount"
+        data-count="{{4}}">
+        <text class="count-num">4</text>
+        <text class="count-label">人</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 输入玩家名字 -->
+  <view class="section">
+    <text class="section-title">玩家名字</text>
+    <block wx:for="{{numPlayers}}" wx:key="index">
+      <view class="name-row">
+        <text class="name-label">玩家 {{index+1}}</text>
+        <input
+          class="name-input"
+          placeholder="输入名字"
+          value="{{playerNames[index]}}"
+          bindinput="setName"
+          data-idx="{{index}}"
+          maxlength="6"
+        />
+      </view>
+    </block>
+  </view>
+
+  <!-- 游戏规则简介 -->
+  <view class="rules-box">
+    <text class="rules-title">📋 玩法简介</text>
+    <text class="rules-text">• 桌面发3张明牌 + 1张暗牌</text>
+    <text class="rules-text">• 每人发5张手牌</text>
+    <text class="rules-text">• 共5轮，每轮选2张牌与桌面牌组合比大小</text>
+    <text class="rules-text">• 排名第2的为输家，输家给其他人金豆</text>
+    <text class="rules-text">• 金豆最多的人最终获胜！</text>
+  </view>
+
+  <!-- 开始按钮 -->
+  <button class="start-btn" bindtap="startGame">开始游戏 🃏</button>
+
+</view>

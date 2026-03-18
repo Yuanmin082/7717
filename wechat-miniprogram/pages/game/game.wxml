@@ -1,0 +1,295 @@
+<!-- 游戏主页面 -->
+<view class="game-bg">
+
+  <!-- ===== 顶部信息栏 ===== -->
+  <view class="header">
+    <view class="round-info">
+      <text class="round-text">{{roundLabel}}</text>
+      <text class="phase-text">{{phaseLabel}}</text>
+    </view>
+    <!-- 金豆分数显示 -->
+    <view class="score-bar">
+      <view wx:for="{{players}}" wx:key="index" class="score-item">
+        <text class="score-name">{{item.name}}</text>
+        <text class="score-beans {{item.goldBeans >= 0 ? 'pos' : 'neg'}}">
+          {{item.goldBeans >= 0 ? '+' : ''}}{{item.goldBeans}}🫘
+        </text>
+      </view>
+    </view>
+  </view>
+
+  <!-- ===== 桌面牌区域（4张） ===== -->
+  <view class="table-area">
+    <text class="area-label">桌面牌</text>
+    <view class="table-cards">
+      <block wx:for="{{tableCards}}" wx:key="index">
+        <view class="table-card-wrap">
+          <!-- 是否是本轮参照牌（高亮边框） -->
+          <view class="table-label">
+            <text wx:if="{{index < 3}}">明牌{{index+1}}</text>
+            <text wx:else>暗牌</text>
+          </view>
+
+          <!-- 第4轮揭示时才显示暗牌 -->
+          <view wx:if="{{item.faceDown && !revealFaceDown}}" class="card card-back">
+            <text class="back-text">暗</text>
+          </view>
+          <view wx:else
+            class="card {{item.isRed ? 'card-red' : 'card-black'}} {{index === round-1 ? 'card-active' : ''}}">
+            <text class="card-rank-top">{{item.rank}}</text>
+            <text class="card-suit">{{item.suit}}</text>
+            <text class="card-rank-bot">{{item.rank}}</text>
+          </view>
+        </view>
+      </block>
+    </view>
+    <text class="table-hint">
+      <text wx:if="{{round <= 4}}">本轮参照：第{{round}}张牌（已用金色框标出）</text>
+      <text wx:else>第5轮：直接展示各自3张手牌</text>
+    </text>
+  </view>
+
+  <!-- ========================================== -->
+  <!-- ===== 抽牌阶段（第2、3、4轮） ===== -->
+  <!-- ========================================== -->
+  <view wx:if="{{phase === 'draw'}}" class="phase-box">
+    <text class="phase-title">📦 抽牌阶段</text>
+    <text class="phase-desc">
+      轮到 <text class="highlight">{{currentPlayer.name}}</text> 抽取2张牌
+    </text>
+    <text class="phase-desc small">（其他玩家请回避屏幕）</text>
+
+    <!-- 还没抽牌 -->
+    <view wx:if="{{drawnCards.length === 0}}" class="action-area">
+      <button class="btn btn-primary" bindtap="onDrawCards">抽取2张牌 🎴</button>
+    </view>
+
+    <!-- 已抽牌，展示结果 -->
+    <view wx:else class="action-area">
+      <text class="drawn-label">抽到的牌：</text>
+      <view class="drawn-cards">
+        <view wx:for="{{drawnCards}}" wx:key="id"
+          class="card {{item.isRed ? 'card-red' : 'card-black'}} card-large">
+          <text class="card-rank-top">{{item.rank}}</text>
+          <text class="card-suit">{{item.suit}}</text>
+          <text class="card-rank-bot">{{item.rank}}</text>
+        </view>
+      </view>
+      <text class="tip-text">看好你的牌后，把手机传给下一位玩家</text>
+      <button class="btn btn-secondary" bindtap="onNextDrawPlayer">
+        传给下家 →
+      </button>
+    </view>
+  </view>
+
+  <!-- ========================================== -->
+  <!-- ===== 选牌阶段 ===== -->
+  <!-- ========================================== -->
+  <view wx:if="{{phase === 'select'}}" class="phase-box">
+
+    <!-- 第5轮特殊：直接展示（无需选牌） -->
+    <view wx:if="{{round === 5}}">
+      <text class="phase-title">🃏 第5轮 · 展示手牌</text>
+      <text class="phase-desc">
+        所有玩家展示剩余的3张手牌，排名第2的输家给每人5颗金豆
+      </text>
+      <button class="btn btn-reveal" bindtap="onRevealRound5">
+        同时展示所有手牌 👁
+      </button>
+    </view>
+
+    <!-- 第1~4轮：轮流选牌 -->
+    <view wx:else>
+      <text class="phase-title">🃏 选牌阶段</text>
+      <text class="phase-desc">
+        轮到 <text class="highlight">{{currentPlayer.name}}</text> 选牌
+        （已有{{selectOrderIdx}}/{{players.length}}人选完）
+      </text>
+      <text class="phase-desc small">其他玩家请回避</text>
+
+      <!-- 还没点"查看我的牌" -->
+      <view wx:if="{{!showHand}}" class="action-area">
+        <button class="btn btn-primary" bindtap="onShowHand">
+          查看我的手牌 🙈
+        </button>
+      </view>
+
+      <!-- 显示手牌，允许选择 -->
+      <view wx:else class="action-area">
+        <text class="ref-label">
+          本轮参照牌：
+          <text class="{{tableCardForRound.isRed ? 'red-text' : ''}}">
+            {{tableCardForRound.rank}}{{tableCardForRound.suit}}
+          </text>
+        </text>
+
+        <text class="select-hint">从手牌中选择2张，与参照牌组成最强或最弱的组合</text>
+
+        <!-- 手牌 -->
+        <view class="hand-row">
+          <view
+            wx:for="{{handWithSelect}}"
+            wx:key="id"
+            class="card {{item.isRed ? 'card-red' : 'card-black'}} {{item.isSelected ? 'card-selected' : ''}}"
+            bindtap="onToggleCard"
+            data-idx="{{index}}"
+          >
+            <text class="card-rank-top">{{item.rank}}</text>
+            <text class="card-suit">{{item.suit}}</text>
+            <text class="card-rank-bot">{{item.rank}}</text>
+          </view>
+        </view>
+
+        <text class="selected-count">已选 {{selectedCount}} / 2 张</text>
+
+        <button
+          class="btn {{selectedCount === 2 ? 'btn-confirm' : 'btn-disabled'}}"
+          disabled="{{selectedCount !== 2}}"
+          bindtap="onConfirmSelect"
+        >
+          确认选牌，传给下家 ✅
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <!-- ========================================== -->
+  <!-- ===== 揭示阶段 ===== -->
+  <!-- ========================================== -->
+  <view wx:if="{{phase === 'reveal'}}" class="phase-box">
+    <text class="phase-title">👀 揭示！同时亮牌</text>
+
+    <view wx:if="{{round === 4}}">
+      <text class="phase-desc">第4轮：同时揭开暗牌！</text>
+    </view>
+
+    <!-- 显示每位玩家选的牌 -->
+    <view class="reveal-list">
+      <view wx:for="{{players}}" wx:key="index" class="reveal-row">
+        <text class="reveal-name">{{item.name}}</text>
+        <view class="reveal-cards">
+          <view wx:if="{{round < 5}}">
+            <!-- 参照牌 + 选的2张 -->
+            <view wx:for="{{tableCards}}" wx:key="id" wx:if="{{index2 === round-1}}"
+              class="card card-active {{item.isRed ? 'card-red' : 'card-black'}}" wx:for-index="index2">
+              <text class="card-rank-top">{{item.rank}}</text>
+              <text class="card-suit">{{item.suit}}</text>
+              <text class="card-rank-bot">{{item.rank}}</text>
+            </view>
+            <view wx:for="{{item.confirmedCards}}" wx:key="id"
+              class="card {{item2.isRed ? 'card-red' : 'card-black'}}" wx:for-item="item2">
+              <text class="card-rank-top">{{item2.rank}}</text>
+              <text class="card-suit">{{item2.suit}}</text>
+              <text class="card-rank-bot">{{item2.rank}}</text>
+            </view>
+          </view>
+          <view wx:else>
+            <!-- 第5轮：显示全部3张手牌 -->
+            <view wx:for="{{item.hand}}" wx:key="id"
+              class="card {{item2.isRed ? 'card-red' : 'card-black'}}" wx:for-item="item2">
+              <text class="card-rank-top">{{item2.rank}}</text>
+              <text class="card-suit">{{item2.suit}}</text>
+              <text class="card-rank-bot">{{item2.rank}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <button class="btn btn-reveal" bindtap="onReveal">
+      揭示排名！🏆
+    </button>
+  </view>
+
+  <!-- ========================================== -->
+  <!-- ===== 结算阶段 ===== -->
+  <!-- ========================================== -->
+  <view wx:if="{{phase === 'score'}" class="phase-box">
+    <text class="phase-title">🏆 本轮排名</text>
+
+    <view class="ranking-list">
+      <view wx:for="{{rankings}}" wx:key="playerIdx"
+        class="ranking-row {{item.rank === 2 ? 'loser-row' : ''}}">
+
+        <text class="rank-badge">
+          <text wx:if="{{item.rank === 1}}">🥇</text>
+          <text wx:elif="{{item.rank === 2}}">💀</text>
+          <text wx:elif="{{item.rank === 3}}">🥉</text>
+          <text wx:else>4️⃣</text>
+        </text>
+
+        <text class="rank-name">{{item.playerIdx !== undefined ? players[item.playerIdx].name : ''}}</text>
+
+        <view class="rank-cards">
+          <view wx:for="{{item.hand.cards}}" wx:key="id"
+            class="card card-mini {{item2.isRed ? 'card-red' : 'card-black'}}" wx:for-item="item2">
+            <text class="mini-rank">{{item2.rank}}</text>
+            <text class="mini-suit">{{item2.suit}}</text>
+          </view>
+        </view>
+
+        <text class="hand-type">{{item.hand.typeName}}</text>
+
+        <text class="beans-change {{item.beansChange > 0 ? 'pos' : item.beansChange < 0 ? 'neg' : ''}}">
+          {{item.beansChange > 0 ? '+' : ''}}{{item.beansChange}}🫘
+        </text>
+      </view>
+    </view>
+
+    <view class="loser-tip" wx:if="{{round < 5}}">
+      <text class="loser-tip-text">💀 第2名输家给每位赢家 {{round}} 颗金豆</text>
+    </view>
+    <view class="loser-tip" wx:else>
+      <text class="loser-tip-text">💀 第2名输家给所有人各 5 颗金豆</text>
+    </view>
+
+    <button
+      wx:if="{{round < 5}}"
+      class="btn btn-primary"
+      bindtap="onSettleScore"
+    >
+      确认结算，进入第{{round+1}}轮
+    </button>
+    <button
+      wx:else
+      class="btn btn-primary"
+      bindtap="onSettleScore"
+    >
+      确认结算，查看最终结果
+    </button>
+  </view>
+
+  <!-- ========================================== -->
+  <!-- ===== 游戏结束 ===== -->
+  <!-- ========================================== -->
+  <view wx:if="{{phase === 'end'}}" class="phase-box end-box">
+    <text class="phase-title">🎉 游戏结束！</text>
+
+    <!-- 最终排名 -->
+    <view class="final-list">
+      <view wx:for="{{players}}" wx:key="index"
+        class="final-row">
+        <text class="final-name">{{item.name}}</text>
+        <text class="final-beans {{item.goldBeans >= 0 ? 'pos' : 'neg'}}">
+          {{item.goldBeans >= 0 ? '+' : ''}}{{item.goldBeans}} 🫘
+        </text>
+      </view>
+    </view>
+
+    <!-- 找最高分 -->
+    <view class="winner-box">
+      <text class="winner-text">🏆 本局最佳：</text>
+      <text class="winner-name">
+        {{players[0].goldBeans >= players[1].goldBeans && players[0].goldBeans >= players[2 < players.length ? 2 : 0].goldBeans ? players[0].name : '查看上方分数'}}
+      </text>
+    </view>
+
+    <button class="btn btn-primary" bindtap="onRestartSamePlayer">
+      再来一局（保留积分）
+    </button>
+    <button class="btn btn-secondary" bindtap="onRestart">
+      返回首页
+    </button>
+  </view>
+
+</view>

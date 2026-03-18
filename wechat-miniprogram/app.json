@@ -1,0 +1,15 @@
+{
+  "pages": [
+    "pages/home/home",
+    "pages/game/game"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#0f3320",
+    "navigationBarTitleText": "逮老二",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#0f3320"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

@@ -1,0 +1,14 @@
+/* 全局样式 */
+page {
+  background: #0f3320;
+  font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif;
+  color: #ffffff;
+  box-sizing: border-box;
+}
+
+/* 通用工具类 */
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
