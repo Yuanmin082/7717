@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <!-- 移动端全屏适配 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <!-- iOS 全屏 PWA 支持 -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="逮老二">
+  <!-- Android 主题色 -->
+  <meta name="theme-color" content="#0f3320">
+
+  <title>逮老二</title>
+
+  <!-- PWA manifest -->
+  <link rel="manifest" href="manifest.json">
+
+  <!-- 图标（用 emoji 作为备用，真实部署时替换为 PNG） -->
+  <link rel="apple-touch-icon" href="icon.png">
+  <link rel="icon" href="icon.png">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 所有界面由 main.js 动态渲染 -->
+    <div class="loading">🃏 加载中...</div>
+  </div>
+
+  <!-- 顺序加载：先加载工具库，再加载游戏逻辑，最后加载 UI -->
+  <script src="cards.js"></script>
+  <script src="gameLogic.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

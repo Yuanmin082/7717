@@ -1,0 +1,26 @@
+{
+  "name": "逮老二",
+  "short_name": "逮老二",
+  "description": "炸金花规则的五轮博弈卡牌游戏",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f3320",
+  "theme_color": "#0f3320",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["games", "entertainment"]
+}

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- 背景 -->
+  <rect width="512" height="512" rx="80" fill="#1a4d2e"/>
+  <!-- 牌桌圆形 -->
+  <circle cx="256" cy="256" r="200" fill="#0f3320" stroke="#2d6e42" stroke-width="8"/>
+  <!-- 中心文字 -->
+  <text x="256" y="200" font-family="Arial" font-size="100" font-weight="900"
+    fill="#ffd700" text-anchor="middle" dominant-baseline="middle">逮</text>
+  <text x="256" y="310" font-family="Arial" font-size="100" font-weight="900"
+    fill="#ffd700" text-anchor="middle" dominant-baseline="middle">老二</text>
+  <!-- 角落花色 -->
+  <text x="68" y="108" font-size="48" fill="#ff4444">♥</text>
+  <text x="396" y="108" font-size="48" fill="#1a1a1a" opacity=".9">♠</text>
+  <text x="68" y="430" font-size="48" fill="#1a1a1a" opacity=".9">♣</text>
+  <text x="396" y="430" font-size="48" fill="#ff4444">♦</text>
+</svg>
