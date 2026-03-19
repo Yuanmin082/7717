@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>量化交易系统</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; }
+
+    .header { background: #161b22; border-bottom: 1px solid #30363d; padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+    .header h1 { font-size: 1.4rem; color: #58a6ff; font-weight: 700; }
+    .header .badge { background: #238636; color: #fff; padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+
+    .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+    .controls { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
+    .control-group { display: flex; flex-direction: column; gap: 6px; }
+    .control-group label { font-size: 0.8rem; color: #8b949e; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+    select, input { background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 8px 12px; border-radius: 6px; font-size: 0.9rem; outline: none; }
+    select:focus, input:focus { border-color: #58a6ff; }
+    .btn { background: #238636; color: #fff; border: none; padding: 9px 20px; border-radius: 6px; font-size: 0.9rem; cursor: pointer; font-weight: 600; transition: background 0.2s; white-space: nowrap; }
+    .btn:hover { background: #2ea043; }
+    .btn:disabled { background: #21262d; color: #8b949e; cursor: not-allowed; }
+
+    .metrics-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .metric-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; }
+    .metric-card .label { font-size: 0.75rem; color: #8b949e; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .metric-card .value { font-size: 1.5rem; font-weight: 700; }
+    .metric-card .value.positive { color: #3fb950; }
+    .metric-card .value.negative { color: #f85149; }
+    .metric-card .value.neutral { color: #58a6ff; }
+
+    .chart-section { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin-bottom: 24px; }
+    .chart-section h2 { font-size: 1rem; color: #c9d1d9; margin-bottom: 16px; font-weight: 600; }
+    canvas { width: 100%; display: block; }
+
+    .tables-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+    @media (max-width: 900px) { .tables-grid { grid-template-columns: 1fr; } }
+
+    .table-section { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; }
+    .table-section h2 { font-size: 1rem; color: #c9d1d9; margin-bottom: 16px; font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th { color: #8b949e; font-weight: 500; text-align: left; padding: 8px 10px; border-bottom: 1px solid #30363d; font-size: 0.75rem; text-transform: uppercase; }
+    td { padding: 8px 10px; border-bottom: 1px solid #21262d; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #1c2128; }
+    .pnl-pos { color: #3fb950; }
+    .pnl-neg { color: #f85149; }
+
+    .loading { text-align: center; padding: 60px; color: #8b949e; font-size: 0.95rem; }
+    .spinner { width: 32px; height: 32px; border: 3px solid #30363d; border-top-color: #58a6ff; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .status-bar { font-size: 0.8rem; color: #8b949e; margin-top: 8px; }
+    .status-bar .ok { color: #3fb950; }
+    .status-bar .err { color: #f85149; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>量化交易系统</h1>
+    <span class="badge">Backtest Engine v1.0</span>
+  </div>
+
+  <div class="container">
+    <!-- Controls -->
+    <div class="controls">
+      <div class="control-group">
+        <label>策略</label>
+        <select id="strategy">
+          <option value="MA_Crossover">MA双均线策略</option>
+          <option value="RSI">RSI超买超卖策略</option>
+          <option value="Bollinger_Bands">布林带策略</option>
+          <option value="MACD">MACD策略</option>
+          <option value="Mean_Reversion">均值回归策略</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>标的</label>
+        <input id="symbol" type="text" value="AAPL" placeholder="e.g. AAPL" style="width:100px">
+      </div>
+      <div class="control-group">
+        <label>回测天数</label>
+        <select id="days">
+          <option value="180">180天</option>
+          <option value="365" selected>1年</option>
+          <option value="730">2年</option>
+          <option value="1095">3年</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>初始资金</label>
+        <input id="capital" type="number" value="100000" step="10000" style="width:130px">
+      </div>
+      <button class="btn" id="runBtn" onclick="runBacktest()">运行回测</button>
+      <div class="status-bar" id="statusBar"></div>
+    </div>
+
+    <!-- Metrics -->
+    <div class="metrics-grid" id="metricsGrid">
+      <div class="metric-card"><div class="label">总收益率</div><div class="value neutral" id="m-return">--</div></div>
+      <div class="metric-card"><div class="label">年化收益率</div><div class="value neutral" id="m-ann-return">--</div></div>
+      <div class="metric-card"><div class="label">夏普比率</div><div class="value neutral" id="m-sharpe">--</div></div>
+      <div class="metric-card"><div class="label">索提诺比率</div><div class="value neutral" id="m-sortino">--</div></div>
+      <div class="metric-card"><div class="label">最大回撤</div><div class="value neutral" id="m-maxdd">--</div></div>
+      <div class="metric-card"><div class="label">年化波动率</div><div class="value neutral" id="m-vol">--</div></div>
+      <div class="metric-card"><div class="label">胜率</div><div class="value neutral" id="m-winrate">--</div></div>
+      <div class="metric-card"><div class="label">盈亏比</div><div class="value neutral" id="m-pf">--</div></div>
+      <div class="metric-card"><div class="label">总交易次数</div><div class="value neutral" id="m-trades">--</div></div>
+      <div class="metric-card"><div class="label">期望收益</div><div class="value neutral" id="m-expect">--</div></div>
+      <div class="metric-card"><div class="label">最终资产</div><div class="value neutral" id="m-equity">--</div></div>
+      <div class="metric-card"><div class="label">卡玛比率</div><div class="value neutral" id="m-calmar">--</div></div>
+    </div>
+
+    <!-- Equity Chart -->
+    <div class="chart-section">
+      <h2>资产净值曲线</h2>
+      <canvas id="equityChart" height="300"></canvas>
+    </div>
+
+    <!-- Trade table -->
+    <div class="tables-grid">
+      <div class="table-section">
+        <h2>交易记录 <span id="tradeCount" style="color:#8b949e;font-size:0.8rem;font-weight:400"></span></h2>
+        <div id="tradesTable"><div class="loading" style="padding:30px;font-size:0.85rem">等待回测结果...</div></div>
+      </div>
+      <div class="table-section">
+        <h2>指标说明</h2>
+        <table>
+          <tbody>
+            <tr><td>夏普比率</td><td>超额收益/年化波动率，&gt;1 优秀，&gt;2 卓越</td></tr>
+            <tr><td>索提诺比率</td><td>超额收益/下行波动率，更关注下行风险</td></tr>
+            <tr><td>最大回撤</td><td>历史峰值到谷值的最大跌幅，衡量极端风险</td></tr>
+            <tr><td>卡玛比率</td><td>年化收益/最大回撤，衡量风险调整收益</td></tr>
+            <tr><td>胜率</td><td>盈利交易占总交易的比例</td></tr>
+            <tr><td>盈亏比</td><td>总盈利/总亏损，&gt;1 表示盈亏平衡</td></tr>
+            <tr><td>期望收益</td><td>胜率×平均盈利 − 败率×平均亏损</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let chartData = null;
+
+    async function runBacktest() {
+      const btn = document.getElementById('runBtn');
+      const status = document.getElementById('statusBar');
+      btn.disabled = true;
+      btn.textContent = '运行中...';
+      status.innerHTML = '<span>正在运行回测，请稍候...</span>';
+
+      const strategy = document.getElementById('strategy').value;
+      const symbol = document.getElementById('symbol').value.trim().toUpperCase() || 'AAPL';
+      const days = document.getElementById('days').value;
+
+      try {
+        const res = await fetch(`/api/backtest?strategy=${strategy}&symbol=${symbol}&days=${days}`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        renderResults(data);
+        status.innerHTML = `<span class="ok">✓ 回测完成 (${symbol}, ${strategy}, ${days}天)</span>`;
+      } catch (e) {
+        status.innerHTML = `<span class="err">✗ 错误: ${e.message}</span>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '运行回测';
+      }
+    }
+
+    function renderResults(data) {
+      const p = data.performance;
+      const fmt = (v, suffix='%') => v != null ? `${v > 0 && suffix==='%' ? '+' : ''}${v}${suffix}` : '--';
+      const colorClass = v => v > 0 ? 'positive' : v < 0 ? 'negative' : 'neutral';
+
+      function setMetric(id, val, suffix='%') {
+        const el = document.getElementById(id);
+        el.textContent = val != null ? `${(val > 0 && suffix === '%') ? '+' : ''}${typeof val === 'number' ? val.toFixed(2) : val}${suffix}` : '--';
+        el.className = 'value ' + colorClass(val);
+      }
+
+      setMetric('m-return', p.total_return_pct);
+      setMetric('m-ann-return', p.annualized_return_pct);
+      setMetric('m-sharpe', p.sharpe_ratio, '');
+      setMetric('m-sortino', p.sortino_ratio, '');
+      setMetric('m-maxdd', -Math.abs(p.max_drawdown_pct));
+      setMetric('m-vol', p.volatility_pct);
+      setMetric('m-winrate', p.win_rate_pct);
+      setMetric('m-pf', p.profit_factor, 'x');
+      document.getElementById('m-trades').textContent = p.total_trades;
+      document.getElementById('m-trades').className = 'value neutral';
+      setMetric('m-expect', p.expectancy, '');
+      document.getElementById('m-equity').textContent = '$' + (data.final_equity || 0).toLocaleString();
+      document.getElementById('m-equity').className = 'value ' + colorClass(data.final_equity - data.initial_capital);
+      setMetric('m-calmar', p.calmar_ratio, '');
+
+      renderChart(data.equity_curve, data.initial_capital);
+      renderTrades(data.trades || []);
+    }
+
+    function renderChart(curve, initial) {
+      const canvas = document.getElementById('equityChart');
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = 300 * dpr;
+      canvas.style.height = '300px';
+      ctx.scale(dpr, dpr);
+      const W = rect.width, H = 300;
+
+      const values = curve.map(p => p.equity);
+      const min = Math.min(...values) * 0.995;
+      const max = Math.max(...values) * 1.005;
+      const scaleY = v => H - 40 - ((v - min) / (max - min)) * (H - 60);
+      const scaleX = i => 50 + (i / (values.length - 1)) * (W - 70);
+
+      ctx.clearRect(0, 0, W, H);
+
+      // Grid
+      ctx.strokeStyle = '#21262d';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = 20 + (i / 4) * (H - 60);
+        ctx.beginPath(); ctx.moveTo(50, y); ctx.lineTo(W - 20, y); ctx.stroke();
+        const val = max - (i / 4) * (max - min);
+        ctx.fillStyle = '#8b949e';
+        ctx.font = '11px monospace';
+        ctx.textAlign = 'right';
+        ctx.fillText('$' + Math.round(val).toLocaleString(), 46, y + 4);
+      }
+
+      // Initial capital line
+      if (initial >= min && initial <= max) {
+        ctx.strokeStyle = '#30363d';
+        ctx.setLineDash([4, 4]);
+        ctx.lineWidth = 1;
+        const y0 = scaleY(initial);
+        ctx.beginPath(); ctx.moveTo(50, y0); ctx.lineTo(W - 20, y0); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Area fill
+      const gradient = ctx.createLinearGradient(0, 0, 0, H);
+      const finalVal = values[values.length - 1];
+      const color = finalVal >= initial ? '#3fb950' : '#f85149';
+      gradient.addColorStop(0, color + '33');
+      gradient.addColorStop(1, color + '05');
+
+      ctx.beginPath();
+      ctx.moveTo(scaleX(0), scaleY(values[0]));
+      values.forEach((v, i) => ctx.lineTo(scaleX(i), scaleY(v)));
+      ctx.lineTo(scaleX(values.length - 1), H - 40);
+      ctx.lineTo(scaleX(0), H - 40);
+      ctx.closePath();
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // Line
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      values.forEach((v, i) => i === 0 ? ctx.moveTo(scaleX(i), scaleY(v)) : ctx.lineTo(scaleX(i), scaleY(v)));
+      ctx.stroke();
+
+      // X-axis labels
+      const step = Math.max(1, Math.floor(curve.length / 6));
+      ctx.fillStyle = '#8b949e';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      for (let i = 0; i < curve.length; i += step) {
+        const d = curve[i].timestamp.slice(0, 10);
+        ctx.fillText(d, scaleX(i), H - 10);
+      }
+    }
+
+    function renderTrades(trades) {
+      const container = document.getElementById('tradesTable');
+      document.getElementById('tradeCount').textContent = `(${trades.length}笔)`;
+      if (!trades.length) {
+        container.innerHTML = '<div style="color:#8b949e;padding:20px;text-align:center;font-size:0.85rem">无交易记录</div>';
+        return;
+      }
+      const recent = trades.slice(-20).reverse();
+      container.innerHTML = `
+        <div style="max-height:320px;overflow-y:auto">
+        <table>
+          <thead><tr>
+            <th>标的</th><th>方向</th><th>入场价</th><th>出场价</th><th>数量</th><th>盈亏</th><th>持仓天数</th>
+          </tr></thead>
+          <tbody>
+            ${recent.map(t => `
+              <tr>
+                <td>${t.symbol}</td>
+                <td>${t.side === 'long' ? '多' : '空'}</td>
+                <td>${t.entry_price.toFixed(2)}</td>
+                <td>${t.exit_price.toFixed(2)}</td>
+                <td>${t.quantity.toFixed(1)}</td>
+                <td class="${t.pnl >= 0 ? 'pnl-pos' : 'pnl-neg'}">${t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(2)}</td>
+                <td>${t.duration_days.toFixed(1)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        </div>`;
+    }
+
+    // Auto-run on page load
+    window.addEventListener('load', () => setTimeout(runBacktest, 300));
+  </script>
+</body>
+</html>

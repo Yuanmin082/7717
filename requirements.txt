@@ -1,0 +1,21 @@
+# Quantitative Trading System - Dependencies
+# All modules use Python 3.10+ standard library only (no external dependencies required)
+# Optional: install the following for enhanced functionality
+
+# Data & Analysis (optional, for CSV data feeds and real market data)
+# pandas>=2.0.0
+# numpy>=1.24.0
+# yfinance>=0.2.0       # Yahoo Finance market data
+
+# Visualization (optional, for charting)
+# matplotlib>=3.7.0
+# plotly>=5.14.0
+
+# Web Framework (optional, replaces built-in http.server)
+# flask>=3.0.0
+# fastapi>=0.100.0
+# uvicorn>=0.23.0
+
+# Testing
+# pytest>=7.4.0
+# pytest-cov>=4.1.0
