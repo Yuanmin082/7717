@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+build/__pycache__/
+dist/
+build/*.spec
+*.spec
+.venv/
+venv/
+.DS_Store
+*.db
+*.db-wal
+*.db-shm
