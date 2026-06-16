@@ -48,6 +48,7 @@
         <div class="dropdown">
           <button id="exportBtn" class="ghost">导出 ▾</button>
           <div class="menu" id="exportMenu">
+            <a data-fmt="pdf">PDF（带目录）</a>
             <a data-fmt="html">双语 HTML</a>
             <a data-fmt="docx">Word 文档</a>
             <a data-fmt="md">Markdown</a>
@@ -114,6 +115,14 @@
           </select>
         </label>
       </div>
+      <label>扫描版 OCR
+        <select id="cfgOcrMode">
+          <option value="auto">自动（仅对无文字的扫描页识别）</option>
+          <option value="off">关闭</option>
+          <option value="force">强制（每页都 OCR，较慢）</option>
+        </select>
+        <span id="ocrHint" class="hint"></span>
+      </label>
       <div id="testResult" class="test-result"></div>
       <div class="modal-actions">
         <button id="testBtn" class="ghost">测试连接</button>

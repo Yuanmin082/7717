@@ -5,7 +5,7 @@ import tempfile
 
 from flask import Flask, jsonify, request, send_file, send_from_directory
 
-from . import config, export, jobs, pdf_extract, storage, translator
+from . import config, export, jobs, ocr, pdf_extract, storage, translator
 
 
 def _frontend_dir() -> str:
@@ -49,6 +49,10 @@ def create_app() -> Flask:
         config.save_config(body)
         return jsonify(config.public_config())
 
+    @app.get("/api/ocr-status")
+    def ocr_status():
+        return jsonify(ocr.ocr_status())
+
     @app.post("/api/test-connection")
     def test_conn():
         try:
@@ -72,7 +76,8 @@ def create_app() -> Flask:
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
         f.save(tmp.name)
         try:
-            pages, meta_title = pdf_extract.extract_pages(tmp.name)
+            ocr_mode = config.load_config().get("ocr_mode", "auto")
+            pages, meta_title = pdf_extract.extract_pages(tmp.name, ocr_mode=ocr_mode)
         except Exception as e:  # noqa: BLE001
             return jsonify({"error": f"PDF 解析失败：{e}"}), 400
         finally:
@@ -156,6 +161,9 @@ def create_app() -> Flask:
         if not b:
             return jsonify({"error": "not found"}), 404
         name = export.safe_filename(b["title"])
+        if fmt == "pdf":
+            data = export.export_pdf(book_id)
+            return _download(data, f"{name}-双语.pdf", "application/pdf")
         if fmt == "md":
             data = export.export_markdown(book_id)
             return _download(data, f"{name}.md", "text/markdown")

@@ -1,6 +1,14 @@
-"""PDF 文本抽取：按页输出段落级文本块，尽量还原阅读顺序并合并断行。"""
+"""PDF 文本抽取：按页输出段落级文本块，尽量还原阅读顺序并合并断行。
+
+对扫描版（无内嵌文字）的页面，可按 ocr_mode 调用 OCR 识别。
+"""
 import re
 import fitz  # PyMuPDF
+
+from . import ocr
+
+# 一页内嵌文字少于该字符数时，认为可能是扫描页，auto 模式下尝试 OCR
+OCR_TEXT_THRESHOLD = 20
 
 
 def _clean_block(text: str) -> str:
@@ -30,10 +38,15 @@ def _looks_like_heading(text: str, size: float, body_size: float) -> bool:
     return False
 
 
-def extract_pages(pdf_path: str) -> list:
-    """返回 [[{type, text}, ...], ...]，每页一个块列表。"""
+def extract_pages(pdf_path: str, ocr_mode: str = "auto", progress=None) -> list:
+    """返回 (pages, title)。
+
+    ocr_mode: "off" 从不 OCR；"auto" 仅对内嵌文字极少的页面 OCR；"force" 全部 OCR。
+    progress: 可选回调 progress(done, total)。
+    """
     doc = fitz.open(pdf_path)
     pages = []
+    ocr_ready = ocr_mode != "off" and ocr.tesseract_available()
     try:
         # 估计正文字号（用中位数）
         sizes = []
@@ -49,7 +62,8 @@ def extract_pages(pdf_path: str) -> list:
             sizes.sort()
             body_size = sizes[len(sizes) // 2]
 
-        for page in doc:
+        total = doc.page_count
+        for pno, page in enumerate(doc):
             blocks_out = []
             d = page.get_text("dict")
             raw_blocks = []
@@ -73,7 +87,21 @@ def extract_pages(pdf_path: str) -> list:
             for _, _, text, size in raw_blocks:
                 btype = "h" if _looks_like_heading(text, size, body_size) else "p"
                 blocks_out.append({"type": btype, "text": text})
+
+            # 扫描页 OCR 兜底
+            embedded_chars = sum(len(b["text"]) for b in blocks_out)
+            need_ocr = ocr_ready and (
+                ocr_mode == "force" or
+                (ocr_mode == "auto" and embedded_chars < OCR_TEXT_THRESHOLD)
+            )
+            if need_ocr:
+                ocr_blocks = ocr.ocr_page(page)
+                if ocr_blocks:
+                    blocks_out = ocr_blocks
+
             pages.append(blocks_out)
+            if progress:
+                progress(pno + 1, total)
         title = doc.metadata.get("title") if doc.metadata else None
         return pages, (title or "")
     finally:

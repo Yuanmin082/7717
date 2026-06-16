@@ -227,8 +227,14 @@ async function openSettings() {
   $("#cfgConcurrency").value = c.concurrency || 4;
   $("#cfgMakeNotes").checked = c.make_notes !== false;
   $("#cfgNoteStyle").value = c.note_style || "讲解版";
+  $("#cfgOcrMode").value = c.ocr_mode || "auto";
   $("#testResult").textContent = "";
   $("#settingsModal").classList.remove("hidden");
+  api("/api/ocr-status").then((s) => {
+    $("#ocrHint").textContent = s.available
+      ? "✓ 已检测到 OCR 引擎，可识别扫描版 PDF"
+      : "未检测到 OCR 引擎：" + (s.detail || "请安装 tesseract-ocr 后重启");
+  }).catch(() => {});
 }
 
 function collectConfig() {
@@ -241,6 +247,7 @@ function collectConfig() {
     concurrency: parseInt($("#cfgConcurrency").value) || 4,
     make_notes: $("#cfgMakeNotes").checked,
     note_style: $("#cfgNoteStyle").value,
+    ocr_mode: $("#cfgOcrMode").value,
   };
 }
 

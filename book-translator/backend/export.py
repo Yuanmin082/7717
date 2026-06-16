@@ -108,6 +108,125 @@ def export_docx(book_id: int) -> bytes:
     return buf.getvalue()
 
 
+def export_pdf(book_id: int) -> bytes:
+    """生成带目录(可点击)和书签的双语对照 PDF。中文用内置 CID 字体，无需额外字体文件。"""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+    from reportlab.platypus import (
+        BaseDocTemplate, Frame, PageBreak, PageTemplate, Paragraph,
+        Spacer, Table, TableStyle,
+    )
+    from reportlab.platypus.tableofcontents import TableOfContents
+
+    data = storage.book_full(book_id)
+    if not data:
+        return b""
+    book = data["book"]
+
+    pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
+    ZH = "STSong-Light"   # 中文（也含 ASCII）
+    EN = "Helvetica"      # 英文
+
+    en_style = ParagraphStyle("en", fontName=EN, fontSize=9.5, leading=14, textColor=colors.HexColor("#555555"))
+    zh_style = ParagraphStyle("zh", fontName=ZH, fontSize=10.5, leading=16, textColor=colors.black)
+    en_h = ParagraphStyle("enh", fontName="Helvetica-Bold", fontSize=12, leading=16, textColor=colors.HexColor("#333333"))
+    zh_h = ParagraphStyle("zhh", fontName=ZH, fontSize=13, leading=18, textColor=colors.black)
+    note_style = ParagraphStyle("note", fontName=ZH, fontSize=9.5, leading=15,
+                                textColor=colors.HexColor("#5a4a00"), backColor=colors.HexColor("#fff8e6"),
+                                borderPadding=6, leftIndent=2, spaceBefore=4, spaceAfter=4)
+    unote_style = ParagraphStyle("unote", fontName=ZH, fontSize=9.5, leading=15,
+                                 textColor=colors.HexColor("#0b3d91"), backColor=colors.HexColor("#eef6ff"),
+                                 borderPadding=6, spaceBefore=4, spaceAfter=4)
+    pn_style = ParagraphStyle("pn", fontName=ZH, fontSize=8, textColor=colors.HexColor("#999999"), spaceBefore=10)
+    title_style = ParagraphStyle("title", fontName=ZH, fontSize=22, leading=28, alignment=1, spaceAfter=8)
+    sub_style = ParagraphStyle("sub", fontName=ZH, fontSize=11, alignment=1, textColor=colors.HexColor("#888888"))
+
+    # 带书签/目录回调的文档模板
+    class BookDoc(BaseDocTemplate):
+        def __init__(self, *a, **kw):
+            super().__init__(*a, **kw)
+            self._heading_seq = 0
+
+        def beforeDocument(self):
+            # 每遍构建重置计数，保证书签 key 在多遍间稳定
+            self._heading_seq = 0
+
+        def afterFlowable(self, flowable):
+            if isinstance(flowable, Paragraph) and getattr(flowable, "style", None):
+                if flowable.style.name == "zhh":
+                    text = flowable.getPlainText()
+                    if not text:
+                        return
+                    key = "h%d" % self._heading_seq
+                    self._heading_seq += 1
+                    self.canv.bookmarkPage(key)
+                    self.canv.addOutlineEntry(text, key, level=0, closed=False)
+                    self.notify("TOCEntry", (0, text, self.page, key))
+
+    buf = io.BytesIO()
+    doc = BookDoc(buf, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm,
+                  topMargin=18 * mm, bottomMargin=16 * mm, title=book["title"])
+    frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="main")
+    doc.addPageTemplates([PageTemplate(id="main", frames=[frame])])
+
+    def cell_table(left_para, right_para):
+        col = (doc.width - 8) / 2.0
+        t = Table([[left_para, right_para]], colWidths=[col, col])
+        t.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (0, 0), 8),
+            ("RIGHTPADDING", (1, 0), (1, 0), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ("LINEBELOW", (0, 0), (-1, -1), 0.3, colors.HexColor("#eeeeee")),
+        ]))
+        return t
+
+    story = []
+    # 封面
+    story.append(Spacer(1, 60 * mm))
+    story.append(Paragraph(_esc(book["title"]), title_style))
+    story.append(Paragraph("英中双语对照 · 由 Book Translator 生成", sub_style))
+    story.append(PageBreak())
+
+    # 目录
+    toc = TableOfContents()
+    toc.levelStyles = [ParagraphStyle("toc0", fontName=ZH, fontSize=11, leading=18,
+                                      textColor=colors.black)]
+    toc_title = ParagraphStyle("toctitle", fontName=ZH, fontSize=16, leading=22, textColor=colors.black)
+    story.append(Paragraph("目录", toc_title))
+    story.append(Spacer(1, 6 * mm))
+    story.append(toc)
+    story.append(PageBreak())
+
+    # 正文
+    for page in sorted(data["blocks_by_page"].keys()):
+        story.append(Paragraph(f"— 第 {page} 页 —", pn_style))
+        for b in data["blocks_by_page"][page]:
+            if b["type"] == "h":
+                # 标题整行排版，触发书签/目录；中文标题用 zhh 样式
+                story.append(Paragraph(_esc(b["original"]), en_h))
+                story.append(Paragraph(_esc(b["translation"] or b["original"]), zh_h))
+            else:
+                story.append(cell_table(
+                    Paragraph(_esc(b["original"]), en_style),
+                    Paragraph(_esc(b["translation"]), zh_style),
+                ))
+        note = data["notes"].get(page, {})
+        if note.get("ai_note"):
+            story.append(Paragraph("📝 AI 笔记<br/>" + _esc(note["ai_note"]).replace("\n", "<br/>"), note_style))
+        if note.get("user_note"):
+            story.append(Paragraph("✍️ 我的笔记<br/>" + _esc(note["user_note"]).replace("\n", "<br/>"), unote_style))
+
+    doc.multiBuild(story)  # 两遍构建以解析目录页码
+    return buf.getvalue()
+
+
 def safe_filename(name: str) -> str:
     name = re.sub(r"[^\w一-龥\-. ]", "_", name or "book").strip()
     return name or "book"
