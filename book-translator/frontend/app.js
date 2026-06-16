@@ -115,17 +115,32 @@ async function loadPage(n) {
   n = Math.max(1, Math.min(state.book.total_pages, n));
   state.page = n;
   $("#pageInput").value = n;
-  const { blocks, meta } = await api(`/api/books/${state.book.id}/page/${n}`);
-  const rows = $("#rows");
-  rows.innerHTML = "";
+  const { blocks } = await api(`/api/books/${state.book.id}/page/${n}`);
+
+  // 左侧：优先显示 PDF 原页图片，失败则回退为文字原文
+  const img = $("#pageImg"), leftText = $("#leftText");
+  img.classList.add("hidden");
+  leftText.classList.add("hidden");
+  leftText.innerHTML = "";
+  img.onload = () => { img.classList.remove("hidden"); leftText.classList.add("hidden"); };
+  img.onerror = () => {
+    img.classList.add("hidden");
+    leftText.classList.remove("hidden");
+    for (const b of blocks) {
+      const d = document.createElement("div");
+      d.className = "blk" + (b.type === "h" ? " h" : "");
+      d.textContent = b.original;
+      leftText.appendChild(d);
+    }
+  };
+  img.src = `/api/books/${state.book.id}/page/${n}/image?t=${Date.now()}`;
+
+  // 右侧：译文（可点击修改）
+  const zhWrap = $("#zhBlocks");
+  zhWrap.innerHTML = "";
   for (const b of blocks) {
-    const row = document.createElement("div");
-    row.className = "row" + (b.type === "h" ? " h" : "");
-    const en = document.createElement("div");
-    en.className = "cell en";
-    en.textContent = b.original;
     const zh = document.createElement("div");
-    zh.className = "cell zh" + (b.translation ? "" : " pending");
+    zh.className = "blk" + (b.type === "h" ? " h" : "") + (b.translation ? "" : " pending");
     zh.textContent = b.translation || (b.original ? "（待翻译）" : "");
     if (b.translation) {
       zh.setAttribute("contenteditable", "true");
@@ -133,13 +148,11 @@ async function loadPage(n) {
       zh.dataset.orig = b.translation;
       zh.addEventListener("blur", () => saveBlockEdit(zh));
     }
-    row.appendChild(en);
-    row.appendChild(zh);
-    rows.appendChild(row);
+    zhWrap.appendChild(zh);
   }
-  const note = (meta && meta.ai_note) || "";
-  $("#aiNote").innerHTML = note ? md(note) : "尚未生成，翻译本页后自动产生。";
-  $("#userNote").value = (meta && meta.user_note) || "";
+  // 回到顶部
+  $("#leftScroll").scrollTop = 0;
+  $("#rightScroll").scrollTop = 0;
 }
 
 async function saveBlockEdit(el) {
@@ -155,32 +168,20 @@ async function saveBlockEdit(el) {
   } catch (e) { toast("保存失败：" + e.message); }
 }
 
-function saveUserNoteDebounced() {
-  clearTimeout(state.noteTimer);
-  state.noteTimer = setTimeout(async () => {
-    if (!state.book) return;
-    await api(`/api/books/${state.book.id}/page/${state.page}/usernote`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_note: $("#userNote").value }),
-    }).catch(() => {});
-  }, 800);
-}
-
-async function regenerateNote() {
-  if (!state.book) return;
-  const btn = $("#regenNoteBtn");
-  btn.disabled = true;
-  $("#aiNote").innerHTML = "重新生成中…";
-  try {
-    const r = await api(`/api/books/${state.book.id}/page/${state.page}/regenerate-note`, { method: "POST" });
-    $("#aiNote").innerHTML = r.ai_note ? md(r.ai_note) : "（本页无需延伸笔记）";
-    toast("笔记已重新生成");
-  } catch (e) {
-    $("#aiNote").innerHTML = "生成失败：" + e.message;
-    toast(e.message, 4000);
-  } finally {
-    btn.disabled = false;
-  }
+/* 两侧按比例联动滚动 */
+function setupScrollSync() {
+  const left = $("#leftScroll"), right = $("#rightScroll");
+  let lock = false;
+  const sync = (src, dst) => {
+    if (lock) return;
+    lock = true;
+    const sh = src.scrollHeight - src.clientHeight;
+    const dh = dst.scrollHeight - dst.clientHeight;
+    dst.scrollTop = sh > 0 ? (src.scrollTop / sh) * dh : 0;
+    requestAnimationFrame(() => { lock = false; });
+  };
+  left.addEventListener("scroll", () => sync(left, right));
+  right.addEventListener("scroll", () => sync(right, left));
 }
 
 /* ---------- 翻译任务 ---------- */
@@ -243,8 +244,6 @@ async function openSettings() {
   $("#cfgModel").value = c.model || "";
   $("#cfgTarget").value = c.target_lang || "中文";
   $("#cfgConcurrency").value = c.concurrency || 4;
-  $("#cfgMakeNotes").checked = c.make_notes !== false;
-  $("#cfgNoteStyle").value = c.note_style || "讲解版";
   $("#cfgOcrMode").value = c.ocr_mode || "auto";
   $("#testResult").textContent = "";
   $("#settingsModal").classList.remove("hidden");
@@ -264,8 +263,7 @@ function collectConfig() {
     model: $("#cfgModel").value.trim(),
     target_lang: $("#cfgTarget").value.trim() || "中文",
     concurrency: parseInt($("#cfgConcurrency").value) || 4,
-    make_notes: $("#cfgMakeNotes").checked,
-    note_style: $("#cfgNoteStyle").value,
+    make_notes: false,
     ocr_mode: $("#cfgOcrMode").value,
   };
 }
@@ -346,9 +344,8 @@ function bind() {
   });
   document.addEventListener("click", () => { $("#exportMenu").style.display = "none"; });
 
-  // 笔记
-  $("#userNote").oninput = saveUserNoteDebounced;
-  $("#regenNoteBtn").onclick = regenerateNote;
+  // 双栏联动滚动
+  setupScrollSync();
 
   // 设置
   $("#settingsBtn").onclick = openSettings;

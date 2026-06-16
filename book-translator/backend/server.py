@@ -79,17 +79,45 @@ def create_app() -> Flask:
             ocr_mode = config.load_config().get("ocr_mode", "auto")
             pages, meta_title = pdf_extract.extract_pages(tmp.name, ocr_mode=ocr_mode)
         except Exception as e:  # noqa: BLE001
-            return jsonify({"error": f"PDF 解析失败：{e}"}), 400
-        finally:
             try:
                 os.unlink(tmp.name)
             except OSError:
                 pass
+            return jsonify({"error": f"PDF 解析失败：{e}"}), 400
         if (meta_title or "").strip().lower() in ("", "untitled"):
             meta_title = ""
         title = meta_title or os.path.splitext(os.path.basename(f.filename))[0]
         book_id = storage.create_book(title, f.filename, pages)
+        # 保存原始 PDF，供左侧显示原页
+        try:
+            storage.PDF_DIR.mkdir(parents=True, exist_ok=True)
+            dest = str(storage.PDF_DIR / f"{book_id}.pdf")
+            os.replace(tmp.name, dest)
+            storage.set_pdf_path(book_id, dest)
+        except OSError:
+            try:
+                os.unlink(tmp.name)
+            except OSError:
+                pass
         return jsonify(storage.get_book(book_id))
+
+    @app.get("/api/books/<int:book_id>/page/<int:page>/image")
+    def page_image(book_id, page):
+        """把 PDF 第 page 页渲染成 PNG 返回（左侧原页显示）。"""
+        b = storage.get_book(book_id)
+        if not b or not b.get("pdf_path") or not os.path.exists(b["pdf_path"]):
+            return jsonify({"error": "no_pdf"}), 404
+        try:
+            import fitz
+            doc = fitz.open(b["pdf_path"])
+            pg = doc[page - 1]
+            pix = pg.get_pixmap(matrix=fitz.Matrix(2, 2))  # 2x 清晰度
+            data = pix.tobytes("png")
+            doc.close()
+        except Exception as e:  # noqa: BLE001
+            return jsonify({"error": str(e)}), 400
+        import io
+        return send_file(io.BytesIO(data), mimetype="image/png")
 
     @app.get("/api/books/<int:book_id>")
     def book_detail(book_id):

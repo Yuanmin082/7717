@@ -26,9 +26,7 @@ def _set(job_id: str, **kw):
 def _translate_one_page(book_id: int, page: int):
     blocks = storage.get_page_blocks(book_id, page)
     translations = translator.translate_blocks(blocks)
-    page_text = "\n\n".join(b["original"] for b in blocks if b.get("original"))
-    note = translator.make_note(page_text)
-    storage.save_page_result(book_id, page, translations, note)
+    storage.save_page_result(book_id, page, translations, "")
 
 
 def _run(job_id: str, book_id: int, pages: list):

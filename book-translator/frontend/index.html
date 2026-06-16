@@ -57,21 +57,18 @@
       </div>
     </div>
 
-    <div id="readerBody" class="reader-body">
-      <div id="columns" class="columns">
-        <div class="col-head en-head">英文原文</div>
-        <div class="col-head zh-head">中文译文</div>
-      </div>
-      <div id="rows" class="rows"></div>
-
-      <div class="notes">
-        <div class="note-block">
-          <h3>📝 AI 笔记 <button id="regenNoteBtn" class="ghost tiny" title="用当前笔记风格重新生成本页笔记">↻ 重新生成</button></h3>
-          <div id="aiNote" class="ai-note">尚未生成，翻译本页后自动产生。</div>
+    <div id="dual" class="dual">
+      <div class="pane">
+        <div class="pane-head">原文（PDF）</div>
+        <div class="pane-scroll" id="leftScroll">
+          <img id="pageImg" class="page-img hidden" alt="PDF 原页">
+          <div id="leftText" class="left-text hidden"></div>
         </div>
-        <div class="note-block">
-          <h3>✍️ 我的笔记</h3>
-          <textarea id="userNote" placeholder="在这里记下你的想法，自动保存…"></textarea>
+      </div>
+      <div class="pane">
+        <div class="pane-head">中文译文</div>
+        <div class="pane-scroll" id="rightScroll">
+          <div id="zhBlocks" class="zh-blocks"></div>
         </div>
       </div>
     </div>
@@ -106,17 +103,6 @@
         </label>
         <label>并发页数
           <input type="number" id="cfgConcurrency" min="1" max="8" value="4">
-        </label>
-      </div>
-      <div class="row2">
-        <label class="check"><input type="checkbox" id="cfgMakeNotes" checked> 生成 AI 笔记</label>
-        <label>笔记风格
-          <select id="cfgNoteStyle">
-            <option>延伸思考</option>
-            <option>精简版</option>
-            <option>讲解版</option>
-            <option>学术版</option>
-          </select>
         </label>
       </div>
       <label>扫描版 OCR

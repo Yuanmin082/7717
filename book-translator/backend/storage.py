@@ -1,5 +1,6 @@
 """SQLite 存储层：书籍、文本块、翻译结果、笔记、翻译缓存。"""
 import hashlib
+import os
 import sqlite3
 import threading
 import time
@@ -67,6 +68,18 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_blocks_book_page ON blocks(book_id, page);
             """
         )
+        # 迁移：旧库补上 pdf_path 列（用于显示 PDF 原页）
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(books)").fetchall()]
+        if "pdf_path" not in cols:
+            conn.execute("ALTER TABLE books ADD COLUMN pdf_path TEXT")
+
+
+PDF_DIR = APP_DIR / "files"
+
+
+def set_pdf_path(book_id: int, path: str) -> None:
+    with db() as conn:
+        conn.execute("UPDATE books SET pdf_path=? WHERE id=?", (path, book_id))
 
 
 # ---------- 书籍 ----------
@@ -106,10 +119,16 @@ def get_book(book_id: int):
 
 
 def delete_book(book_id: int) -> None:
+    book = get_book(book_id)
     with db() as conn:
         conn.execute("DELETE FROM blocks WHERE book_id=?", (book_id,))
         conn.execute("DELETE FROM pages WHERE book_id=?", (book_id,))
         conn.execute("DELETE FROM books WHERE id=?", (book_id,))
+    if book and book.get("pdf_path"):
+        try:
+            os.remove(book["pdf_path"])
+        except OSError:
+            pass
 
 
 # ---------- 页 / 块 ----------
