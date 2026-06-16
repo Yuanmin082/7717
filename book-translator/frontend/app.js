@@ -239,6 +239,7 @@ async function openSettings() {
   $("#cfgApiKey").value = "";
   $("#keyHint").textContent = c.api_key_set ? `已设置（${c.api_key_hint}），留空不修改` : "尚未设置";
   $("#cfgBaseUrl").value = c.base_url || "";
+  $("#cfgProxy").value = c.proxy || "";
   $("#cfgModel").value = c.model || "";
   $("#cfgTarget").value = c.target_lang || "中文";
   $("#cfgConcurrency").value = c.concurrency || 4;
@@ -259,6 +260,7 @@ function collectConfig() {
     provider: $("#cfgProvider").value,
     api_key: $("#cfgApiKey").value,
     base_url: $("#cfgBaseUrl").value.trim(),
+    proxy: $("#cfgProxy").value.trim(),
     model: $("#cfgModel").value.trim(),
     target_lang: $("#cfgTarget").value.trim() || "中文",
     concurrency: parseInt($("#cfgConcurrency").value) || 4,

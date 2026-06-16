@@ -24,6 +24,7 @@ DEFAULTS = {
     "make_notes": True,         # 是否生成 AI 笔记
     "note_style": "延伸思考",   # 笔记风格：延伸思考 / 精简版 / 讲解版 / 学术版
     "ocr_mode": "auto",         # 扫描页 OCR：off / auto / force
+    "proxy": "",                # 代理地址，留空=不走代理直连；填如 http://127.0.0.1:7890
 }
 
 

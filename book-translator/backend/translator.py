@@ -31,8 +31,17 @@ def _chat(messages: list, json_mode: bool = False, max_tokens: int = 4096) -> st
     }
     if json_mode:
         payload["response_format"] = {"type": "json_object"}
+
+    # 代理处理：默认忽略系统代理（DeepSeek 等国内接口直连）；
+    # 若在设置里填了 proxy（例如访问 Claude/OpenAI 需要梯子），则用该代理。
+    session = requests.Session()
+    proxy = (cfg.get("proxy") or "").strip()
+    if proxy:
+        session.proxies = {"http": proxy, "https": proxy}
+    else:
+        session.trust_env = False  # 不读取 HTTP_PROXY/HTTPS_PROXY 等环境变量
     try:
-        resp = requests.post(
+        resp = session.post(
             url,
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json=payload,
