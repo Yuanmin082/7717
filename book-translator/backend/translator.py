@@ -132,10 +132,27 @@ def _translate_single(text: str, target: str) -> str:
 # ---------- AI 笔记 ----------
 
 NOTE_PROMPTS = {
-    "讲解版": "结合内容写一段中文学习笔记：概括本页要点，解释难点与背景，挑出3-6个重点词汇/术语并给中文释义。条理清晰，用 Markdown。",
-    "精简版": "用中文写3-5条精简笔记：一句话概括要点，列出关键术语及释义。简短克制。",
+    "延伸思考": (
+        "请基于本页正文，按段落审视内容，"
+        "只在确有价值时补充：相关背景、延伸阅读线索、可深入思考的问题，或与现实/实践的联系。"
+        "要求：挑出本页真正值得展开的 1-4 个点，每点一两句话即可；"
+        "不要逐句翻译或复述原文，不要逐字解释词汇；"
+        "如果本页内容平实、没有值得延伸的地方，就只用一句话点出主旨。用简洁的 Markdown。"
+    ),
+    "精简版": "用中文写 1-3 条精简提示：一句话点出本页主旨，再补最值得注意的 1-2 个点。简短克制，不复述原文。",
+    "讲解版": "结合内容写一段中文学习笔记：概括本页要点，解释难点与背景，挑出 3-6 个重点词汇/术语并给中文释义。条理清晰，用 Markdown。",
     "学术版": "以学术视角写中文笔记：梳理论点与逻辑结构，指出关键概念、引用与潜在争议，给出延伸思考。",
 }
+
+# 不同风格用不同的系统人设
+NOTE_ROLES = {
+    "延伸思考": "你是善于举一反三的阅读伙伴，克制而有洞见，只在值得时才发言。",
+    "精简版": "你是惜字如金的读书助手。",
+    "讲解版": "你是中文阅读辅导老师，擅长把英文原著讲清楚。",
+    "学术版": "你是治学严谨的学者。",
+}
+
+DEFAULT_NOTE_STYLE = "延伸思考"
 
 
 def make_note(page_text: str) -> str:
@@ -146,14 +163,16 @@ def make_note(page_text: str) -> str:
     if len(text) < 40:
         return ""
     model = cfg.get("model", "deepseek-chat")
-    ck = storage.cache_key(text[:4000], model, "note:" + cfg.get("note_style", "讲解版"))
+    style_name = cfg.get("note_style", DEFAULT_NOTE_STYLE)
+    ck = storage.cache_key(text[:4000], model, "note:" + style_name)
     cached = storage.cache_get(ck)
     if cached is not None:
         return cached
-    style = NOTE_PROMPTS.get(cfg.get("note_style", "讲解版"), NOTE_PROMPTS["讲解版"])
+    style = NOTE_PROMPTS.get(style_name, NOTE_PROMPTS[DEFAULT_NOTE_STYLE])
+    role = NOTE_ROLES.get(style_name, NOTE_ROLES[DEFAULT_NOTE_STYLE])
     note = _chat(
         [
-            {"role": "system", "content": "你是中文阅读辅导老师，擅长把英文原著讲清楚。" + style},
+            {"role": "system", "content": role + style},
             {"role": "user", "content": text[:6000]},
         ],
         max_tokens=2048,

@@ -22,7 +22,7 @@ DEFAULTS = {
     "concurrency": 4,          # 同时翻译的页数
     "temperature": 0.3,
     "make_notes": True,         # 是否生成 AI 笔记
-    "note_style": "讲解版",     # 笔记风格：讲解版 / 精简版 / 学术版
+    "note_style": "延伸思考",   # 笔记风格：延伸思考 / 精简版 / 讲解版 / 学术版
     "ocr_mode": "auto",         # 扫描页 OCR：off / auto / force
 }
 

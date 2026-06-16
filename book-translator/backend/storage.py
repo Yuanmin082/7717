@@ -151,6 +151,14 @@ def save_page_result(book_id: int, page: int, translations: dict, ai_note: str) 
         conn.execute("UPDATE books SET translated_pages=? WHERE id=?", (done, book_id))
 
 
+def save_ai_note(book_id: int, page: int, ai_note: str) -> None:
+    with db() as conn:
+        conn.execute(
+            "UPDATE pages SET ai_note=? WHERE book_id=? AND page=?",
+            (ai_note, book_id, page),
+        )
+
+
 def save_user_note(book_id: int, page: int, user_note: str) -> None:
     with db() as conn:
         conn.execute(

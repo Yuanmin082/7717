@@ -141,6 +141,17 @@ def create_app() -> Flask:
         return jsonify(j)
 
     # ---------- 笔记 / 修正 ----------
+    @app.post("/api/books/<int:book_id>/page/<int:page>/regenerate-note")
+    def regenerate_note(book_id, page):
+        blocks = storage.get_page_blocks(book_id, page)
+        page_text = "\n\n".join(b["original"] for b in blocks if b.get("original"))
+        try:
+            note = translator.make_note(page_text)
+        except Exception as e:  # noqa: BLE001
+            return jsonify({"error": str(e)}), 400
+        storage.save_ai_note(book_id, page, note)
+        return jsonify({"ai_note": note})
+
     @app.post("/api/books/<int:book_id>/page/<int:page>/usernote")
     def save_usernote(book_id, page):
         body = request.get_json(force=True) or {}

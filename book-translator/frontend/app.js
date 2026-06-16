@@ -166,6 +166,23 @@ function saveUserNoteDebounced() {
   }, 800);
 }
 
+async function regenerateNote() {
+  if (!state.book) return;
+  const btn = $("#regenNoteBtn");
+  btn.disabled = true;
+  $("#aiNote").innerHTML = "重新生成中…";
+  try {
+    const r = await api(`/api/books/${state.book.id}/page/${state.page}/regenerate-note`, { method: "POST" });
+    $("#aiNote").innerHTML = r.ai_note ? md(r.ai_note) : "（本页无需延伸笔记）";
+    toast("笔记已重新生成");
+  } catch (e) {
+    $("#aiNote").innerHTML = "生成失败：" + e.message;
+    toast(e.message, 4000);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 /* ---------- 翻译任务 ---------- */
 async function translate(scope) {
   if (!state.book) return;
@@ -329,6 +346,7 @@ function bind() {
 
   // 笔记
   $("#userNote").oninput = saveUserNoteDebounced;
+  $("#regenNoteBtn").onclick = regenerateNote;
 
   // 设置
   $("#settingsBtn").onclick = openSettings;

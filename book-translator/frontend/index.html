@@ -66,7 +66,7 @@
 
       <div class="notes">
         <div class="note-block">
-          <h3>📝 AI 笔记</h3>
+          <h3>📝 AI 笔记 <button id="regenNoteBtn" class="ghost tiny" title="用当前笔记风格重新生成本页笔记">↻ 重新生成</button></h3>
           <div id="aiNote" class="ai-note">尚未生成，翻译本页后自动产生。</div>
         </div>
         <div class="note-block">
@@ -109,8 +109,9 @@
         <label class="check"><input type="checkbox" id="cfgMakeNotes" checked> 生成 AI 笔记</label>
         <label>笔记风格
           <select id="cfgNoteStyle">
-            <option>讲解版</option>
+            <option>延伸思考</option>
             <option>精简版</option>
+            <option>讲解版</option>
             <option>学术版</option>
           </select>
         </label>
